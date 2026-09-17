@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Gebundelde app / PyInstaller build-artefacten
+build/
+dist/
+ResultaatGenerator.app/
+
+# Wedstrijddata: persoonsgegevens van deelnemers, wisselt per competitie -- hoort niet in de repo
+*.csv
+*.xlsx
+~$*.xlsx
+.racegorilla_cache.json
+
+# macOS
+.DS_Store
