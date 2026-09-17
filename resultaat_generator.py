@@ -6,6 +6,24 @@ import glob
 import pandas as pd
 
 DNF_TIME = 9999.0  # ponytail: sentinel groter dan elke realistische wedstrijdtijd, zodat DNF/DNS/DSQ nooit als snelste telt
+GEVAARLIJKE_CEL_PREFIXES = ('=', '+', '-', '@', '\t', '\r')  # kunnen als Excel-formule geïnterpreteerd worden
+
+
+def ontwapen_cel(waarde):
+    """Voorkomt CSV/Excel-formule-injectie: prefixt een tekstcel die begint met =/+/-/@ met een apostrof.
+    Namen komen uiteindelijk van een inschrijfformulier -- niet zomaar vertrouwen bij export."""
+    if isinstance(waarde, str) and waarde[:1] in GEVAARLIJKE_CEL_PREFIXES:
+        return "'" + waarde
+    return waarde
+
+
+def ontwapen_voor_export(df):
+    """Kopie van df met tekstkolommen ontwapend (zie ontwapen_cel) -- enkel voor export, niet voor
+    intern gebruik (zou naam-matching elders in de app kunnen breken)."""
+    df = df.copy()
+    for kolom in df.select_dtypes(include='object').columns:
+        df[kolom] = df[kolom].map(ontwapen_cel)
+    return df
 
 
 def time_to_seconds(time_str):
@@ -94,7 +112,7 @@ def genereer_ranking(category):
         raise SystemExit(f"Geen CSV-bestanden gevonden in {folder_path}")
 
     resultsOverview = build_ranking(file_list)
-    resultsOverview.to_excel(export_name + ".xlsx", index=False, engine='openpyxl')
+    ontwapen_voor_export(resultsOverview).to_excel(export_name + ".xlsx", index=False, engine='openpyxl')
     print(f"Geëxporteerd naar {export_name}.xlsx ({len(resultsOverview)} atleten)")
 
 

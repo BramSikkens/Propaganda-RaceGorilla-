@@ -13,7 +13,7 @@ from tkinter import ttk, filedialog, messagebox
 import pandas as pd
 import requests
 
-from resultaat_generator import build_ranking
+from resultaat_generator import build_ranking, ontwapen_cel, ontwapen_voor_export
 
 RANKING_KOLOMMEN = ['Rank', 'Name', 'ParticipantId', 'Event', 'TotalPoints', 'TotalTime', 'Final', 'Lane']
 RANKING_WEERGAVE = ['Rank', 'Name', 'Event', 'TotalPoints', 'TotalTime', 'Final', 'Lane']  # zonder ParticipantId (enkel intern nodig)
@@ -195,7 +195,7 @@ def genereer_csv_rijen_voor_event(event, wedstrijden_lijst):
                 diff_str = '' if item['Time'] == leider_tijd else _tijd_naar_string(item['Time'] - leider_tijd)
 
             rijen.append({
-                'Rank': rank, 'Bib': '', 'Name': item['Participant']['Name'], 'Event': event,
+                'Rank': rank, 'Bib': '', 'Name': ontwapen_cel(item['Participant']['Name']), 'Event': event,
                 'Country': '', 'Time': tijd_str, 'Score': 0, 'Total': tijd_str, 'Diff': diff_str,
             })
 
@@ -204,15 +204,30 @@ def genereer_csv_rijen_voor_event(event, wedstrijden_lijst):
     return csv_per_bestand
 
 
+def _veilige_bestandsnaam(naam):
+    """Zet een (van RaceGorilla afkomstige) naam om naar een veilige bestandsnaam --
+    geen pad-separators of '..', om pad-traversal bij het schrijven te voorkomen."""
+    naam = os.path.basename(naam)
+    naam = re.sub(r'[^A-Za-z0-9._ -]', '_', naam)
+    naam = naam.strip(' .')
+    return naam or 'onbekend'
+
+
 def schrijf_csvs(folder_pad, csv_per_bestand):
-    """Verwijdert bestaande CSV's in de map en schrijft de nieuwe weg. Geeft de geschreven paden terug."""
+    """Verwijdert bestaande CSV's in de map en schrijft de nieuwe weg. Geeft de geschreven paden terug.
+    Weigert een folder_pad die (via een gemanipuleerde categorienaam) buiten RESULTATEN_PAD valt."""
+    folder_pad_echt = os.path.realpath(folder_pad)
+    basis_echt = os.path.realpath(RESULTATEN_PAD)
+    if os.path.commonpath([folder_pad_echt, basis_echt]) != basis_echt:
+        raise ValueError(f"Ongeldige map: '{folder_pad}' valt buiten {RESULTATEN_PAD}.")
+
     os.makedirs(folder_pad, exist_ok=True)
     for oud_bestand in glob.glob(os.path.join(folder_pad, '*.csv')):
         os.remove(oud_bestand)
 
     geschreven_paden = []
     for bestandsnaam, rijen in csv_per_bestand.items():
-        pad = os.path.join(folder_pad, bestandsnaam)
+        pad = os.path.join(folder_pad, _veilige_bestandsnaam(bestandsnaam))
         with open(pad, 'w', newline='', encoding='utf-8') as f:
             schrijver = csv.DictWriter(f, fieldnames=CSV_KOLOMMEN)
             schrijver.writeheader()
@@ -576,7 +591,10 @@ class App(tk.Tk):
         tk.Button(dialoog, text="Inladen", command=bevestig).pack(pady=(0, 10))
 
     def _automatisch_inladen_voor_event(self, event):
-        folder_naam = event.replace(' ', '').upper()
+        folder_naam = re.sub(r'[^A-Z0-9_-]', '', event.replace(' ', '').upper())
+        if not folder_naam:
+            messagebox.showerror("Ongeldig event", f"Kan geen geldige mapnaam afleiden van '{event}'.")
+            return
         folder_pad = os.path.join(RESULTATEN_PAD, folder_naam)
 
         if not messagebox.askyesno(
@@ -621,7 +639,7 @@ class App(tk.Tk):
         pad = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel-bestand", "*.xlsx")], initialfile="Ranking.xlsx")
         if not pad:
             return
-        self.ranking.to_excel(pad, index=False, engine="openpyxl")
+        ontwapen_voor_export(self.ranking).to_excel(pad, index=False, engine="openpyxl")
         self.status.config(text=f"Geëxporteerd naar {pad}")
 
     def toon_wedstrijden(self):
@@ -850,7 +868,7 @@ class App(tk.Tk):
         pad = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel-bestand", "*.xlsx")], initialfile="Jeugdspelen_Ranking.xlsx")
         if not pad:
             return
-        self.jeugdspelen_ranking.to_excel(pad, index=False, engine="openpyxl")
+        ontwapen_voor_export(self.jeugdspelen_ranking).to_excel(pad, index=False, engine="openpyxl")
         self.status.config(text=f"Geëxporteerd naar {pad}")
 
 
