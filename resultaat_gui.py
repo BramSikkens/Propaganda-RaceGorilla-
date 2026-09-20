@@ -289,17 +289,20 @@ def _sorteer_op_tijd(items):
 
 
 def _naar_plaatsen(gerangschikte_items):
-    """Zet een al-gerangschikte lijst raceresultaten om naar rijen met Plaats (1..N) en Punten (N - plaats)."""
+    """Zet een al-gerangschikte lijst raceresultaten om naar rijen met Plaats (1..N) en Punten.
+    Punten = N - plaats + 1: de winnaar krijgt N, de laatste 1 -- zodat iemand die meedeed altijd
+    meer scoort dan iemand die niet meedeed (0). Dnf/Dns/Dsq krijgen 0."""
     n = len(gerangschikte_items)
-    return [
-        {
+    rijen = []
+    for plaats, item in enumerate(gerangschikte_items, start=1):
+        afwezig = item.get('Dnf') or item.get('Dns') or item.get('Dsq')
+        rijen.append({
             'ParticipantId': item['Participant']['ParticipantId'],
             'Name': item['Participant']['Name'],
             'Plaats': plaats,
-            'Punten': n - plaats,
-        }
-        for plaats, item in enumerate(gerangschikte_items, start=1)
-    ]
+            'Punten': 0 if afwezig else n - plaats + 1,
+        })
+    return rijen
 
 
 def bereken_punten_enkele_race(race_id):
