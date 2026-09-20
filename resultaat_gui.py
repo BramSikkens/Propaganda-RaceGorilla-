@@ -331,7 +331,8 @@ def genereer_jeugdspelen_ranking(categorie, wedstrijden_lijst):
 
     def vind_race(naam_bevat, event):
         for w in wedstrijden_lijst:
-            if w[3] == event and naam_bevat in w[1].lower():
+            naam = w[1].lower()
+            if w[3] == event and naam_bevat in naam and 'test' not in naam:  # RaceGorilla bevat ook testraces
                 return w
         return None
 
